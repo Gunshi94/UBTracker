@@ -1,4 +1,5 @@
 {
+  "id": "/CardTracker/?app=unionbank-tracker",
   "name": "UnionBank Tracker",
   "short_name": "Card",
   "description": "Track card spending against what you set aside",
