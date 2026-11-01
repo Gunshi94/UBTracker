@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#161F27">
+<title>Card Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Card">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1EEE4; --ink:#161F27; --ink-soft:#6B675E;
+    --green:#2F6844; --green-soft:#DCEBE1;
+    --gold:#B8860B; --gold-soft:#F4E9CC;
+    --red:#A6432F; --red-soft:#F6E4DF;
+    --slate:#3E566B; --rule:#D6CFBA;
+    --surface:#FFFFFF; --ink-bg:#161F27; --border:#161F27; --track:#E6E1D1; --on-dark:#FFFFFF;
+    --nav-h:64px;
+    --serif:'Zilla Slab', Georgia, serif;
+    --sans:'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12171C; --ink:#ECE7DA; --ink-soft:#9D978B;
+      --green:#4C8F68; --green-soft:#1E3A2A; --gold:#C79A2B; --gold-soft:#3A3220;
+      --red:#C15A42; --red-soft:#3A241F; --slate:#52708A; --rule:#39424B;
+      --surface:#1C232A; --ink-bg:#0D1216; --border:#39424B; --track:#2A323A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12171C; --ink:#ECE7DA; --ink-soft:#9D978B;
+    --green:#4C8F68; --green-soft:#1E3A2A; --gold:#C79A2B; --gold-soft:#3A3220;
+    --red:#C15A42; --red-soft:#3A241F; --slate:#52708A; --rule:#39424B;
+    --surface:#1C232A; --ink-bg:#0D1216; --border:#39424B; --track:#2A323A;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);}
+  body{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);}
+  button{font-family:inherit; cursor:pointer;}
+
+  .topbar{position:sticky; top:0; z-index:20; background:var(--ink-bg); color:var(--on-dark);
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .topbar h1{font-family:var(--serif); font-size:1.12rem; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topbar .right{display:flex; align-items:center; gap:10px; flex:none;}
+  .saved{font-family:var(--mono); font-size:.68rem; opacity:.75;}
+  #themeBtn{background:rgba(255,255,255,.14); border:none; color:var(--on-dark); width:36px; height:36px; border-radius:50%; font-size:1rem;}
+
+  main{padding:14px 14px 0; max-width:560px; margin:0 auto;}
+  .view{display:none;} .view.active{display:block;}
+  h2{font-family:var(--serif); font-size:1.05rem; margin:0;}
+  h3{font-family:var(--serif); font-size:.95rem; margin:18px 2px 8px;}
+  .lbl{display:block; font-size:.7rem; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-soft); margin:0 0 5px;}
+  .hint{font-size:.76rem; color:var(--ink-soft); line-height:1.5; margin:8px 0 0;}
+
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%; height:46px; padding:0 12px; font-size:16px; font-family:var(--sans); color:var(--ink);
+    background:var(--surface); border:1.5px solid var(--rule); border-radius:10px; appearance:none; -webkit-appearance:none; min-width:0;}
+  input[type=number]{font-family:var(--mono); text-align:right; -moz-appearance:textfield;}
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  select{padding-right:30px; background-image:linear-gradient(45deg,transparent 50%,var(--ink-soft) 50%),linear-gradient(135deg,var(--ink-soft) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size:5px 5px; background-repeat:no-repeat;}
+  textarea{height:110px; padding:10px 12px; font-family:var(--mono); font-size:13px; resize:none;}
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(47,104,68,.18);}
+
+  /* date shown in words over the native date box */
+  .date-wrap{position:relative;}
+  .date-wrap input[type=date]{color:transparent;}
+  .date-wrap input[type=date]::-webkit-datetime-edit{opacity:0;}
+  .date-words{position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:16px; font-weight:500; color:var(--ink); white-space:nowrap;}
+
+  .card{background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row2 > label, .stack > label{display:block; font-size:.62rem; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); min-width:0;}
+  .row2 > label input, .row2 > label select, .stack > label input{margin-top:4px;}
+  /* the labels are small caps; what you type and the worded date shouldn't be */
+  .row2 > label input, .row2 > label select, .stack > label input, .date-words{text-transform:none; letter-spacing:normal;}
+  .stack > * + *{margin-top:10px;}
+
+  /* overspending check */
+  .check{border-radius:14px; padding:14px; margin-bottom:12px; color:var(--on-dark); background:var(--green);}
+  .check.short{background:var(--red);}
+  .check .big{font-family:var(--mono); font-size:1.35rem; font-weight:600; margin-top:2px;}
+  .check .lbl{color:rgba(255,255,255,.8);}
+  .check .pair{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.4);}
+  .check .pair span{display:block; font-size:.62rem; text-transform:uppercase; letter-spacing:.4px; opacity:.85;}
+  .check .pair b{display:block; font-family:var(--mono); font-size:.95rem; margin-top:2px;}
+
+  /* statement period cards */
+  .periods{display:grid; gap:12px;}
+  .pcard{background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:14px; min-width:0;}
+  .pcard .role{font-size:.66rem; text-transform:uppercase; letter-spacing:.6px; font-weight:700; color:var(--ink-soft);}
+  .pcard.now{box-shadow:0 0 0 2px var(--green) inset;}
+  .pcard .range{font-family:var(--serif); font-size:1.02rem; font-weight:600; margin:2px 0 2px;}
+  .pcard .sub{font-size:.76rem; color:var(--ink-soft);}
+  .pcard .left{font-family:var(--mono); font-size:1.45rem; font-weight:600; color:var(--green); margin-top:10px;}
+  .pcard .left.warn{color:var(--gold);} .pcard .left.over{color:var(--red);} .pcard .left.pending{color:var(--ink);}
+  .pcard .left small{display:block; font-family:var(--sans); font-size:.72rem; font-weight:400; color:var(--ink-soft);}
+  .meter{height:12px; background:var(--track); border-radius:8px; overflow:hidden; margin:10px 0 8px;}
+  .fill{height:100%; width:0%; background:var(--green); border-radius:8px; transition:width .3s;}
+  .fill.warn{background:var(--gold);} .fill.over{background:var(--red);} .fill.pending{background:var(--slate);}
+  .figs{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .figs div{background:var(--paper); border-radius:10px; padding:8px 10px; min-width:0;}
+  .figs small{display:block; font-size:.6rem; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft);}
+  .figs b{display:block; font-family:var(--mono); font-size:.9rem; margin-top:2px; overflow-wrap:anywhere;}
+  .pace{margin-top:10px; font-size:.82rem; background:var(--green-soft); border-radius:10px; padding:9px 11px;}
+  .pace b{font-family:var(--mono);}
+  .pace.over{background:var(--red-soft);} .pace.warn{background:var(--gold-soft);}
+  .status{margin-top:10px; font-size:.8rem; font-weight:600;}
+  .status.paid{color:var(--green);} .status.due{color:var(--gold);} .status.late{color:var(--red);}
+  .recon{font-size:.76rem; margin-top:6px; color:var(--ink-soft);}
+  .recon.bad{color:var(--red); font-weight:600;}
+  .pills{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .pill{font-size:.68rem; font-family:var(--mono); background:var(--paper); border-radius:20px; padding:3px 8px; color:var(--ink-soft);}
+
+  /* purchases */
+  .purchase{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--rule);}
+  .purchase:last-child{border-bottom:none;}
+  .purchase .what{flex:1; min-width:0;}
+  .purchase .what b{display:block; font-weight:600; overflow-wrap:anywhere; line-height:1.3;}
+  .purchase .what small{color:var(--ink-soft); font-size:.72rem;}
+  .purchase .amt{font-family:var(--mono); font-weight:600; white-space:nowrap;}
+  .iconbtn{flex:none; width:38px; height:38px; border-radius:9px; border:1.5px solid var(--rule); background:var(--surface); color:var(--ink-soft); font-size:.9rem;}
+  .badge{display:inline-block; font-size:.62rem; font-weight:700; background:var(--gold-soft); color:var(--gold); border-radius:5px; padding:1px 6px; margin-left:4px; vertical-align:middle;}
+  .grouphead{display:flex; justify-content:space-between; align-items:baseline; margin:16px 2px 4px;}
+  .grouphead h3{margin:0;}
+  .grouphead span{font-family:var(--mono); font-size:.8rem; color:var(--ink-soft);}
+  .lands{font-size:.8rem; background:var(--paper); border-radius:10px; padding:9px 11px; margin-top:10px;}
+  .lands b{font-weight:600;}
+
+  /* paydays */
+  .payday{padding:12px 0; border-bottom:1px solid var(--rule);}
+  .payday:last-child{border-bottom:none;}
+  .payday .ph{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+  .payday .ph b{font-family:var(--serif); font-size:.98rem;}
+  .tag{font-size:.66rem; font-weight:700; border-radius:5px; padding:2px 7px;}
+  .tag.got{background:var(--green-soft); color:var(--green);} .tag.soon{background:var(--track); color:var(--ink-soft);}
+  .payday .calc{font-size:.74rem; color:var(--ink-soft); margin-top:6px;}
+
+  .btn{height:46px; padding:0 18px; border-radius:10px; border:none; background:var(--ink-bg); color:var(--on-dark); font-size:.9rem; font-weight:600;}
+  .btn.ghost{background:var(--surface); color:var(--ink); border:1.5px solid var(--rule);}
+  .btn.danger{background:var(--red);}
+  .btn.block{width:100%;}
+  .btn.green{background:var(--green);}
+  .inline{display:flex; gap:8px; align-items:center;}
+  .check-line{display:flex; align-items:center; gap:10px; font-size:.86rem; margin-top:10px;}
+  .check-line input{width:20px; height:20px; accent-color:var(--green);}
+  .theme-row{display:flex; gap:8px;}
+  .theme-row button{flex:1; height:42px; border-radius:10px; border:1.5px solid var(--rule); background:var(--surface); color:var(--ink-soft); font-weight:600;}
+  .theme-row button.on{background:var(--ink-bg); color:var(--on-dark); border-color:var(--ink-bg);}
+  .empty{text-align:center; color:var(--ink-soft); font-size:.85rem; padding:16px 8px; font-style:italic;}
+
+  nav.bottom{position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--surface); border-top:1.5px solid var(--border);
+    display:grid; grid-template-columns:repeat(5,1fr); padding-bottom:env(safe-area-inset-bottom);}
+  nav.bottom button{height:var(--nav-h); border:none; background:transparent; color:var(--ink-soft);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:.64rem; font-weight:600;}
+  nav.bottom svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  nav.bottom button.active{color:var(--green);}
+
+  .toast{position:fixed; left:50%; transform:translate(-50%,20px); bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);
+    background:var(--ink-bg); color:var(--on-dark); padding:11px 16px; border-radius:24px; font-size:.84rem; z-index:50;
+    display:flex; gap:12px; align-items:center; opacity:0; pointer-events:none; transition:.25s; max-width:92vw;}
+  .toast.show{opacity:1; transform:translate(-50%,0); pointer-events:auto;}
+  .toast button{background:none; border:none; color:#8FD3A9; font-weight:700; font-size:.84rem;}
+  .backdrop{position:fixed; inset:0; background:rgba(22,31,39,.5); z-index:60; display:none; align-items:flex-end;}
+  .backdrop.show{display:flex;}
+  .sheet{background:var(--surface); width:100%; border-radius:20px 20px 0 0; padding:20px 18px calc(18px + env(safe-area-inset-bottom)); max-width:560px; margin:0 auto;}
+  .sheet p{margin:0 0 16px; font-size:.95rem; line-height:1.5;}
+  .sheet .acts{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  /* laptop: tabs on top, statements side by side */
+  @media (min-width: 900px){
+    body{padding-bottom:30px;}
+    main{max-width:1120px; padding:20px 24px 0;}
+    nav.bottom{position:sticky; top:56px; bottom:auto; border-top:none; border-bottom:1.5px solid var(--border);
+      grid-template-columns:repeat(5,auto); justify-content:center; gap:4px; padding:0 8px; z-index:19;}
+    nav.bottom button{height:48px; flex-direction:row; gap:8px; font-size:.84rem; padding:0 18px;}
+    nav.bottom svg{width:18px; height:18px;}
+    nav.bottom button.active{box-shadow:inset 0 -3px 0 var(--green);}
+    .periods{grid-template-columns:repeat(3,1fr);}
+    .toast{bottom:24px;}
+    .twocol{display:grid; grid-template-columns:380px 1fr; gap:20px; align-items:start;}
+    .sheet{border-radius:16px; margin-bottom:30px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 id="appTitle">UnionBank Tracker</h1>
+  <div class="right">
+    <span class="saved" id="savedTag">Loading…</span>
+    <button id="themeBtn" aria-label="Change theme" title="Theme">🌓</button>
+  </div>
+</div>
+
+<nav class="bottom" aria-label="Main">
+  <button class="active" data-tab="now"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Now</button>
+  <button data-tab="log"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Log</button>
+  <button data-tab="paydays"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 3v4M16 3v4M4 11h16"/></svg>Paydays</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>History</button>
+  <button data-tab="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>More</button>
+</nav>
+
+<main>
+
+  <!-- NOW -->
+  <section class="view active" id="view-now">
+    <div class="check" id="checkBox">
+      <span class="lbl">Are you covered?</span>
+      <div class="big" id="checkBig">—</div>
+      <div class="hint" style="color:rgba(255,255,255,.85);margin-top:4px;" id="checkSub"></div>
+      <div class="pair">
+        <div><span>Owed on card (unpaid)</span><b id="checkOwed">₱0.00</b></div>
+        <div><span>Parked in savings for it</span><b id="checkParked">₱0.00</b></div>
+      </div>
+    </div>
+    <div class="periods" id="periods"></div>
+    <button class="btn block green" data-tab="log" style="margin-top:12px;">+ Log a purchase</button>
+  </section>
+
+  <!-- LOG -->
+  <section class="view" id="view-log">
+    <div class="twocol">
+      <div class="card" id="logForm">
+        <h2 id="formTitle" style="margin-bottom:12px;">Log a purchase</h2>
+        <div class="stack">
+          <label>Date
+            <div class="date-wrap"><input type="date" id="pDate"><span class="date-words" id="pDateWords"></span></div>
+          </label>
+          <label>What was it?<input type="text" id="pDesc" placeholder="e.g. Milk tea" autocomplete="off"></label>
+          <label>Amount (₱)<input type="number" inputmode="decimal" step="0.01" id="pAmt" placeholder="0.00"></label>
+        </div>
+        <label class="check-line"><input type="checkbox" id="pInst"> 0% installment</label>
+        <div id="instBox" style="display:none;margin-top:10px;">
+          <label class="lbl" for="pMonths">Months</label>
+          <select id="pMonths">
+            <option value="3">3 months</option><option value="6" selected>6 months</option><option value="9">9 months</option>
+            <option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option><option value="36">36 months</option>
+          </select>
+        </div>
+        <div class="lands" id="lands"></div>
+        <div class="inline" style="margin-top:12px;">
+          <button class="btn green" id="saveBtn" style="flex:1;">Add purchase</button>
+          <button class="btn ghost" id="cancelEdit" style="display:none;">Cancel</button>
+        </div>
+      </div>
+      <div>
+        <div id="purchaseList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAYDAYS -->
+  <section class="view" id="view-paydays">
+    <div class="card">
+      <h2 style="margin-bottom:4px;">Paydays</h2>
+      <p class="hint" style="margin-top:0;" id="paydayIntro"></p>
+      <div id="paydayList"></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <div id="historyList"></div>
+  </section>
+
+  <!-- MORE -->
+  <section class="view" id="view-more">
+    <div class="card" id="installCard">
+      <h2 style="margin-bottom:6px;">Add to your home screen</h2>
+      <p class="hint" id="installHow" style="margin:0 0 12px;"></p>
+      <button class="btn block" id="installBtn" style="display:none;">Install app</button>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:10px;">Card &amp; pay settings</h2>
+      <div class="stack">
+        <label>Card name<input type="text" id="sCard" autocomplete="off"></label>
+        <div class="row2">
+          <label>Statement closes on day<input type="number" inputmode="numeric" id="sDay" min="1" max="28"></label>
+          <label>Days until payment due<input type="number" inputmode="numeric" id="sDue" min="1" max="60"></label>
+        </div>
+        <div class="row2">
+          <label>Wants share of pay (%)<input type="number" inputmode="decimal" id="sPct" min="0" max="100"></label>
+          <label>Paid every (days)<input type="number" inputmode="numeric" id="sEvery" min="7" max="31"></label>
+        </div>
+        <label>Any one of your paydays
+          <div class="date-wrap"><input type="date" id="sAnchor"><span class="date-words" id="sAnchorWords"></span></div>
+        </label>
+      </div>
+      <p class="hint">The due date is an estimate based on the statement. If one statement shows a different due date, adjust "days until payment due".</p>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:10px;">Appearance</h2>
+      <div class="theme-row">
+        <button data-theme-set="system">System</button><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:6px;">Backup &amp; restore</h2>
+      <p class="hint" style="margin:0 0 12px;">Copy your data to move it between your phone and laptop, or paste a backup to restore it.</p>
+      <div class="inline" style="margin-bottom:10px;">
+        <button class="btn ghost" style="flex:1;" data-action="showBackup">Show backup</button>
+        <button class="btn ghost" style="flex:1;" data-action="copyBackup">Copy</button>
+      </div>
+      <textarea id="backupBox" spellcheck="false" placeholder="Backup text appears here. To restore, paste it here and tap Restore."></textarea>
+      <button class="btn block" style="margin-top:10px;" data-action="restoreBackup">Restore from pasted backup</button>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:6px;">Start over</h2>
+      <p class="hint" style="margin:0 0 12px;">Clears all purchases, paydays and payment records. Your settings are kept.</p>
+      <button class="btn danger block" data-action="resetAll">🗑️ Clear all data</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastAct" style="display:none;"></button></div>
+<div class="backdrop" id="backdrop"><div class="sheet"><p id="sheetMsg"></p>
+  <div class="acts"><button class="btn ghost" id="sheetCancel">Cancel</button><button class="btn danger" id="sheetOk">Confirm</button></div></div></div>
+
+<script>
+// ================= helpers =================
+const $ = id => document.getElementById(id);
+const setText = (id,t) => { const el=$(id); if(el) el.textContent=t; };
+const fmt = n => '₱' + (Number(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2, maximumFractionDigits:2});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const MONTHS = ['Jan.','Feb.','Mar.','Apr.','May','Jun.','Jul.','Aug.','Sep.','Oct.','Nov.','Dec.'];
+const DAY = 86400000;
+const pad = n => String(n).padStart(2,'0');
+// Dates are handled as plain 'YYYY-MM-DD' strings and UTC math, so time zones can't shift a day.
+const isoOk = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'');
+const toMs = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y,m-1,d); };
+const toIso = ms => new Date(ms).toISOString().slice(0,10);
+const addDays = (s,n) => toIso(toMs(s) + n*DAY);
+const words = s => { if(!isoOk(s)) return ''; const [y,m,d]=s.split('-').map(Number); return `${MONTHS[m-1]} ${d}, ${y}`; };
+const shortWords = s => { if(!isoOk(s)) return ''; const [,m,d]=s.split('-').map(Number); return `${MONTHS[m-1]} ${d}`; };
+let TODAY_OVERRIDE = null;   // used only by tests
+const today = () => { if(TODAY_OVERRIDE) return TODAY_OVERRIDE; const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+
+// ================= storage =================
+const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage !== null;
+const store = {
+  async get(k){ if(hasClaudeStorage) return await window.storage.get(k); const r=localStorage.getItem(k); return r?{value:r}:null; },
+  async set(k,v){ if(hasClaudeStorage) return await window.storage.set(k,v); localStorage.setItem(k,v); return {value:v}; }
+};
+const KEY = 'cardtracker:state', THEME_KEY = 'cardtracker:theme';
+
+function defaults(){
+  return {
+    settings:{ card:'UnionBank', day:15, due:19, pct:30, every:14, anchor:'2026-10-23' },
+    paydays:{},      // 'YYYY-MM-DD' -> {income, moved}
+    purchases:[],    // {id, date, desc, amount, months}  months 0 = paid in full
+    statements:{}    // close date -> {paid, statementAmt}
+  };
+}
+function normalize(s){
+  const d = defaults(), out = Object.assign({}, d, s||{});
+  const st = Object.assign({}, d.settings, (s&&s.settings)||{});
+  st.day = Math.min(28, Math.max(1, Math.round(num(st.day)) || 15));
+  st.due = Math.min(60, Math.max(1, Math.round(num(st.due)) || 19));
+  st.pct = Math.min(100, Math.max(0, num(st.pct)));
+  st.every = Math.min(31, Math.max(7, Math.round(num(st.every)) || 14));
+  if(!isoOk(st.anchor)) st.anchor = d.settings.anchor;
+  st.card = String(st.card||'').trim() || 'UnionBank';
+  out.settings = st;
+  out.paydays = {};
+  Object.entries((s&&s.paydays)||{}).forEach(([k,v]) => {
+    if(!isoOk(k) || !v) return;
+    const moved = (v.moved === '' || v.moved === null || v.moved === undefined) ? null : num(v.moved);
+    out.paydays[k] = { income: num(v.income), moved };
+  });
+  out.purchases = ((s&&s.purchases)||[]).filter(p => p && isoOk(p.date)).map(p => ({
+    id: String(p.id || (Date.now()+Math.random())), date: p.date, desc: String(p.desc||''),
+    amount: num(p.amount), months: Math.max(0, Math.round(num(p.months)))
+  }));
+  out.statements = {};
+  Object.entries((s&&s.statements)||{}).forEach(([k,v]) => {
+    if(!isoOk(k) || !v) return;
+    out.statements[k] = { paid: !!v.paid, statementAmt: (v.statementAmt===''||v.statementAmt==null) ? null : num(v.statementAmt) };
+  });
+  return out;
+}
+let state = defaults();
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer); setText('savedTag','Saving…');
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    try{ await store.set(KEY, JSON.stringify(state)); setText('savedTag','Saved ' + new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})); }
+    catch(e){ console.error(e); setText('savedTag','Not saved'); }
+  }, 300);
+}
+// Write immediately if the app is closed while a save is still pending.
+function flushSave(){
+  if(!saveTimer) return;
+  clearTimeout(saveTimer); saveTimer = null;
+  try{ const data = JSON.stringify(state); if(hasClaudeStorage) store.set(KEY,data); else localStorage.setItem(KEY,data); }catch(e){ console.error(e); }
+}
+window.addEventListener('pagehide', flushSave);
+window.addEventListener('beforeunload', flushSave);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') flushSave(); });
+
+// ================= statement & payday math =================
+const S = () => state.settings;
+// Which statement a date lands on: the statement that closes on or after it.
+function closeFor(dateIso){
+  const [y,m,d] = dateIso.split('-').map(Number), day = S().day;
+  if(d <= day) return `${y}-${pad(m)}-${pad(day)}`;
+  return m === 12 ? `${y+1}-01-${pad(day)}` : `${y}-${pad(m+1)}-${pad(day)}`;
+}
+function shiftClose(closeIso, k){
+  let [y,m] = closeIso.split('-').map(Number);
+  m += k; while(m > 12){ m -= 12; y++; } while(m < 1){ m += 12; y--; }
+  return `${y}-${pad(m)}-${pad(S().day)}`;
+}
+const monthsBetween = (a,b) => { const [ya,ma]=a.split('-').map(Number), [yb,mb]=b.split('-').map(Number); return (yb-ya)*12 + (mb-ma); };
+function period(close){
+  const start = addDays(shiftClose(close,-1), 1);
+  return { close, start, end: close, due: addDays(close, S().due) };
+}
+function paydaysBetween(start, end){
+  const A = toMs(S().anchor), step = S().every*DAY, a = toMs(start), b = toMs(end);
+  const out = [];
+  for(let k = Math.ceil((a-A)/step); A + k*step <= b; k++) out.push(toIso(A + k*step));
+  return out;
+}
+function setAsideFor(payIso){
+  const p = state.paydays[payIso];
+  if(!p) return 0;
+  if(p.moved !== null && p.moved !== undefined) return num(p.moved);
+  return num(p.income) * S().pct / 100;
+}
+// Installments: amount split evenly in cents, first payment on the statement the purchase lands on.
+function installmentSlice(p, i){
+  const cents = Math.round(num(p.amount)*100), n = p.months;
+  const base = Math.floor(cents / n);
+  return (i < n-1 ? base : cents - base*(n-1)) / 100;
+}
+function chargesOn(close){
+  let total = 0, inst = 0; const items = [];
+  for(const p of state.purchases){
+    const first = closeFor(p.date);
+    if(p.months > 0){
+      const i = monthsBetween(first, close);
+      if(i >= 0 && i < p.months){ const a = installmentSlice(p,i); total += a; inst += a; items.push({p, amount:a, part:`${i+1} of ${p.months}`}); }
+    } else if(first === close){ total += num(p.amount); items.push({p, amount:num(p.amount)}); }
+  }
+  return { total: Math.round(total*100)/100, inst: Math.round(inst*100)/100, items };
+}
+function stats(close){
+  const pr = period(close);
+  const pays = paydaysBetween(pr.start, pr.end);
+  const budget = Math.round(pays.reduce((s,d)=>s+setAsideFor(d),0)*100)/100;
+  const ch = chargesOn(close);
+  const left = Math.round((budget - ch.total)*100)/100;
+  // paydays with nothing entered yet: the budget for this period isn't final
+  const missing = pays.filter(d => { const p = state.paydays[d]; return !p || (num(p.income) === 0 && (p.moved === null || p.moved === undefined)); });
+  return { ...pr, pays, missing, budget, charged: ch.total, inst: ch.inst, items: ch.items, left, ratio: budget>0 ? ch.total/budget : (ch.total>0 ? Infinity : 0) };
+}
+const currentClose = () => closeFor(today());
+
+// All statements that matter: from the earliest data up to the one after the current.
+function allCloses(){
+  const cur = currentClose();
+  let earliest = shiftClose(cur, -1);
+  const consider = d => { if(isoOk(d)){ const c = closeFor(d); if(c < earliest) earliest = c; } };
+  state.purchases.forEach(p => consider(p.date));
+  Object.keys(state.paydays).forEach(consider);
+  Object.keys(state.statements).forEach(c => { if(c < earliest) earliest = c; });
+  const list = []; let c = earliest, guard = 0;
+  while(c <= shiftClose(cur, 1) && guard++ < 240){ list.push(c); c = shiftClose(c, 1); }
+  return list;
+}
+// What you owe the card right now vs. what you've parked for it.
+function coverage(){
+  const cur = currentClose(), t = today();
+  let owed = 0, parked = 0;
+  for(const c of allCloses()){
+    if(c > cur) break;
+    if(state.statements[c] && state.statements[c].paid) continue;
+    const s = stats(c);
+    owed += s.charged;
+    parked += s.pays.filter(d => d <= t).reduce((a,d)=>a+setAsideFor(d),0);
+  }
+  owed = Math.round(owed*100)/100; parked = Math.round(parked*100)/100;
+  return { owed, parked, diff: Math.round((parked-owed)*100)/100 };
+}
+
+// ================= rendering =================
+// Don't call it overspending until every payday in the period has its income entered.
+function levelClass(s){
+  if(s.missing.length && s.left < 0) return 'pending';
+  return s.ratio > 1 ? 'over' : (s.ratio >= 0.8 ? 'warn' : '');
+}
+function leftLabel(s, role){
+  if(s.missing.length && s.left < 0) return {amt: fmt(s.charged), lbl: 'charged so far · add payday income to compare'};
+  if(s.left < 0) return {amt: fmt(-s.left), lbl: 'over budget'};
+  return {amt: fmt(s.left), lbl: role === 'paying' || role === 'history' ? 'under budget, stays in savings' : 'left to spend'};
+}
+
+function periodCard(role, s){
+  const t = today(), st = state.statements[s.close] || {};
+  const cls = levelClass(s);
+  const pct = barPct(s);
+  const L = leftLabel(s, role), leftTxt = L.amt, leftLbl = L.lbl;
+  let extra = '';
+  if(role === 'now'){
+    const daysLeft = Math.max(1, Math.round((toMs(s.end)-toMs(t))/DAY) + 1);
+    const pendingPays = s.pays.filter(d => d > t);
+    extra += `<div class="pace ${cls}" data-out="${s.close}:pace">${paceText(s, daysLeft)}</div>`;
+    if(pendingPays.length) extra += `<p class="hint">Includes ${pendingPays.map(shortWords).join(' & ')} payday${pendingPays.length>1?'s':''}, not received yet.</p>`;
+  }
+  if(role === 'paying'){
+    const due = s.due, daysToDue = Math.round((toMs(due)-toMs(t))/DAY);
+    const status = st.paid ? `<div class="status paid">✓ Paid</div>`
+      : (daysToDue < 0 ? `<div class="status late">Past due since ${words(due)}</div>`
+         : `<div class="status due">Due ${words(due)}${daysToDue===0?' (today)':` (in ${daysToDue} day${daysToDue>1?'s':''})`}</div>`);
+    extra += status + `
+      <label class="lbl" style="margin-top:10px;">Statement balance from ${esc(S().card)} (optional)</label>
+      <input type="number" inputmode="decimal" step="0.01" data-stmt="${s.close}" value="${st.statementAmt==null?'':st.statementAmt}" placeholder="Check against what you logged">
+      <div class="recon" data-out="${s.close}:recon"></div>
+      <button class="btn ${st.paid?'ghost':'green'} block" style="margin-top:10px;" data-paid="${s.close}">${st.paid?'Mark as not paid':'Mark as paid'}</button>`;
+  }
+  if(role === 'next' && s.inst > 0) extra += `<p class="hint">Already includes <b>${fmt(s.inst)}</b> of installments.</p>`;
+  const roleTxt = {paying:'Paying now', now:'Spending now', next:'Coming up'}[role];
+  return `<div class="pcard ${role==='now'?'now':''}">
+    <div class="role">${roleTxt}</div>
+    <div class="range">${shortWords(s.start)} – ${words(s.end)}</div>
+    <div class="sub">Statement ${shortWords(s.close)} · Due ${words(s.due)}</div>
+    <div class="left ${cls}" data-out="${s.close}:left">${leftTxt}<small>${leftLbl}</small></div>
+    <div class="meter"><div class="fill ${cls}" data-out="${s.close}:fill" style="width:${pct}%"></div></div>
+    <div class="figs">
+      <div><small>Set aside</small><b data-out="${s.close}:budget">${fmt(s.budget)}</b></div>
+      <div><small>Charged</small><b data-out="${s.close}:charged">${fmt(s.charged)}</b></div>
+    </div>
+    <p class="hint" data-out="${s.close}:missing">${missingText(s)}</p>
+    ${extra}
+  </div>`;
+}
+
+// bar stays empty while a period is waiting for payday income, so it never looks maxed out
+function barPct(s){
+  if(s.missing.length && s.left < 0) return 0;
+  return s.budget > 0 ? Math.min(100, s.charged/s.budget*100) : (s.charged>0 ? 100 : 0);
+}
+function paceText(s, daysLeft){
+  if(s.missing.length && s.left < 0) return 'Enter the income for every payday in this period to see your daily limit.';
+  if(s.left < 0) return `You're <b>${fmt(-s.left)}</b> over. Anything else you put on the card this period comes from somewhere else.`;
+  return `About <b>${fmt(s.left/daysLeft)}</b> a day for the next <b>${daysLeft}</b> day${daysLeft>1?'s':''}.`;
+}
+function missingText(s){
+  if(!s.missing.length) return '';
+  return `Still need income for: ${s.missing.map(shortWords).join(', ')}. Add it under Paydays.`;
+}
+function renderNow(){
+  const cur = currentClose();
+  $('periods').innerHTML =
+    periodCard('paying', stats(shiftClose(cur,-1))) + periodCard('now', stats(cur)) + periodCard('next', stats(shiftClose(cur,1)));
+  updateNumbers();
+}
+
+// Patch the figures in place, so typing in a box never gets interrupted.
+function updateNumbers(){
+  const cv = coverage();
+  setText('checkOwed', fmt(cv.owed)); setText('checkParked', fmt(cv.parked));
+  const box = $('checkBox');
+  if(cv.diff >= 0){
+    box.classList.remove('short');
+    setText('checkBig', cv.owed === 0 ? 'Nothing owed yet' : `Covered, ${fmt(cv.diff)} to spare`);
+    const curS = stats(currentClose());
+    const dipping = curS.left < 0 && !curS.missing.length;
+    setText('checkSub', cv.owed === 0 ? 'Log purchases as you make them.'
+      : dipping ? `Your savings can cover the card, but this period is ${fmt(-curS.left)} over its own budget, so you're using leftovers from earlier paydays.`
+      : 'Everything on the card is backed by money you parked.');
+  } else {
+    box.classList.add('short');
+    setText('checkBig', `Short by ${fmt(-cv.diff)}`);
+    setText('checkSub', "You've charged more than you've parked so far. Ease off the card, or top up savings before the due date.");
+  }
+  const cur = currentClose();
+  for(const c of [shiftClose(cur,-1), cur, shiftClose(cur,1)]){
+    const s = stats(c), cls = levelClass(s);
+    const el = k => document.querySelector(`[data-out="${c}:${k}"]`);
+    const role = c === cur ? 'now' : (c < cur ? 'paying' : 'next');
+    const left = el('left');
+    if(left){ const L = leftLabel(s, role); left.className = 'left ' + cls; left.innerHTML = `${L.amt}<small>${L.lbl}</small>`; }
+    const pace = el('pace');
+    if(pace){ const daysLeft = Math.max(1, Math.round((toMs(s.end)-toMs(today()))/DAY) + 1); pace.className = 'pace ' + cls; pace.innerHTML = paceText(s, daysLeft); }
+    const miss = el('missing'); if(miss) miss.textContent = missingText(s);
+    const fill = el('fill');
+    if(fill){ fill.className = 'fill ' + cls; fill.style.width = barPct(s) + '%'; }
+    if(el('budget')) el('budget').textContent = fmt(s.budget);
+    if(el('charged')) el('charged').textContent = fmt(s.charged);
+    const recon = el('recon');
+    if(recon){
+      const st = state.statements[c] || {};
+      if(st.statementAmt == null){ recon.className='recon'; recon.textContent=''; }
+      else {
+        const d = Math.round((st.statementAmt - s.charged)*100)/100;
+        if(Math.abs(d) < 0.01){ recon.className='recon'; recon.textContent='✓ Matches what you logged.'; }
+        else if(d > 0){ recon.className='recon bad'; recon.textContent=`${fmt(d)} on the statement isn't logged here. A purchase may be missing.`; }
+        else { recon.className='recon bad'; recon.textContent=`You logged ${fmt(-d)} more than the statement shows. Check for a duplicate.`; }
+      }
+    }
+  }
+}
+
+function landsText(){
+  const d = $('pDate').value, amt = num($('pAmt').value), inst = $('pInst').checked, n = num($('pMonths').value);
+  if(!isoOk(d)) return 'Pick a date to see which statement this goes on.';
+  const c = closeFor(d), pr = period(c);
+  if(inst && n > 0){
+    const last = period(shiftClose(c, n-1));
+    const each = amt > 0 ? installmentSlice({amount:amt, months:n}, 0) : 0;
+    return `<b>${amt>0?fmt(each)+'/month':'Monthly payments'}</b> on ${n} statements, ${shortWords(c)} to ${words(last.close)}.`;
+  }
+  return `Goes on the <b>${words(c)}</b> statement, due <b>${words(pr.due)}</b>.`;
+}
+function refreshForm(){
+  $('pDateWords').textContent = words($('pDate').value) || 'Pick a date';
+  $('instBox').style.display = $('pInst').checked ? '' : 'none';
+  $('lands').innerHTML = landsText();
+}
+
+let editingId = null;
+function renderLog(){
+  const groups = {};
+  for(const p of state.purchases){ (groups[closeFor(p.date)] = groups[closeFor(p.date)] || []).push(p); }
+  const keys = Object.keys(groups).sort().reverse();
+  if(!keys.length){ $('purchaseList').innerHTML = '<div class="card"><div class="empty">No purchases yet. Log the first one and it will land on the right statement automatically.</div></div>'; return; }
+  $('purchaseList').innerHTML = keys.map(c => {
+    const list = groups[c].slice().sort((a,b)=> b.date.localeCompare(a.date) || (b.id > a.id ? 1 : -1));
+    const tot = list.reduce((s,p)=>s+num(p.amount),0);
+    return `<div class="grouphead"><h3>Bought ${shortWords(period(c).start)} – ${shortWords(c)}</h3><span>${fmt(tot)}</span></div>
+      <div class="card" style="padding:4px 14px;">${list.map(p => `
+        <div class="purchase">
+          <div class="what"><b>${esc(p.desc)||'(no description)'}</b>
+            <small>${words(p.date)}${p.months>0?` <span class="badge">${p.months} mo</span> ${fmt(installmentSlice(p,0))}/mo`:''}</small></div>
+          <div class="amt">${fmt(p.amount)}</div>
+          <button class="iconbtn" data-edit="${esc(p.id)}" aria-label="Edit">✎</button>
+          <button class="iconbtn" data-del="${esc(p.id)}" aria-label="Delete">✕</button>
+        </div>`).join('')}</div>`;
+  }).join('');
+}
+
+function renderPaydays(){
+  const cur = currentClose(), t = today();
+  const closes = [shiftClose(cur,-1), cur, shiftClose(cur,1)];
+  $('paydayIntro').textContent = `Enter your take-home pay. ${S().pct}% is what you park in savings for ${S().card} purchases. If you moved a different amount, put it in "Actually moved".`;
+  $('paydayList').innerHTML = closes.map(c => {
+    const pr = period(c), pays = paydaysBetween(pr.start, pr.end);
+    return `<h3>For the ${shortWords(c)} statement</h3>` + (pays.length ? pays.map(d => {
+      const p = state.paydays[d] || {};
+      return `<div class="payday">
+        <div class="ph"><b>${words(d)}</b><span class="tag ${d<=t?'got':'soon'}">${d<=t?'Received':'Upcoming'}</span></div>
+        <div class="row2">
+          <label>Income (₱)<input type="number" inputmode="decimal" step="0.01" data-pay="${d}:income" value="${p.income?p.income:''}" placeholder="0.00"></label>
+          <label>Actually moved (₱)<input type="number" inputmode="decimal" step="0.01" data-pay="${d}:moved" value="${p.moved==null?'':p.moved}" placeholder="optional"></label>
+        </div>
+        <div class="calc" data-out="pay:${d}">${payCalc(d)}</div>
+      </div>`; }).join('') : '<div class="empty">No paydays in this period.</div>');
+  }).join('');
+}
+function payCalc(d){
+  const p = state.paydays[d] || {};
+  const suggested = num(p.income) * S().pct / 100;
+  if(p.moved != null) return `Counting <b>${fmt(p.moved)}</b> (what you moved). ${S().pct}% would be ${fmt(suggested)}.`;
+  return num(p.income) > 0 ? `${S().pct}% = <b>${fmt(suggested)}</b> to park in savings.` : 'Enter your income for this payday.';
+}
+
+function renderHistory(){
+  const cur = currentClose();
+  const older = allCloses().filter(c => c < shiftClose(cur,-1)).reverse();
+  if(!older.length){ $('historyList').innerHTML = '<div class="card"><div class="empty">Older statements will show up here.</div></div>'; return; }
+  $('historyList').innerHTML = older.map(c => {
+    const s = stats(c), st = state.statements[c] || {};
+    return `<div class="card">
+      <div class="inline" style="justify-content:space-between;"><h2>${shortWords(s.start)} – ${words(s.end)}</h2>
+        <span class="tag ${st.paid?'got':'soon'}">${st.paid?'Paid':'Not marked paid'}</span></div>
+      <div class="figs" style="margin-top:10px;">
+        <div><small>Set aside</small><b>${fmt(s.budget)}</b></div>
+        <div><small>Charged</small><b>${fmt(s.charged)}</b></div>
+      </div>
+      <p class="hint" style="color:${s.left<0?'var(--red)':'var(--green)'};font-weight:600;">${s.left>=0?`Under budget by ${fmt(s.left)}, which stays in savings`:`Over budget by ${fmt(-s.left)}`}</p>
+      ${st.paid?'':`<button class="btn ghost block" style="margin-top:8px;" data-paid="${c}">Mark as paid</button>`}
+    </div>`;
+  }).join('');
+}
+
+function syncSettings(){
+  const st = S();
+  $('sCard').value = st.card; $('sDay').value = st.day; $('sDue').value = st.due;
+  $('sPct').value = st.pct; $('sEvery').value = st.every; $('sAnchor').value = st.anchor;
+  $('sAnchorWords').textContent = words(st.anchor);
+  $('appTitle').textContent = `${st.card} Tracker`;
+}
+function renderAll(){ syncSettings(); renderNow(); renderLog(); renderPaydays(); renderHistory(); refreshForm(); }
+
+// ================= navigation, toast, confirm =================
+function showTab(t){
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-'+t));
+  document.querySelectorAll('nav.bottom button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  window.scrollTo(0,0);
+}
+let toastTimer = null;
+function toast(msg, act, fn){
+  setText('toastMsg', msg); const b = $('toastAct');
+  if(act){ b.style.display=''; b.textContent=act; b.onclick=()=>{ fn(); hideToast(); }; } else { b.style.display='none'; b.onclick=null; }
+  $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, act?5000:2800);
+}
+function hideToast(){ $('toast').classList.remove('show'); }
+function askConfirm(msg, ok='Confirm'){
+  return new Promise(res => {
+    setText('sheetMsg', msg); $('sheetOk').textContent = ok; $('backdrop').classList.add('show');
+    const done = v => { $('backdrop').classList.remove('show'); $('sheetOk').onclick = $('sheetCancel').onclick = null; res(v); };
+    $('sheetOk').onclick = () => done(true); $('sheetCancel').onclick = () => done(false);
+  });
+}
+
+// ================= log form =================
+function resetForm(){
+  editingId = null;
+  $('pDate').value = today(); $('pDesc').value = ''; $('pAmt').value = '';
+  $('pInst').checked = false; $('pMonths').value = '6';
+  $('formTitle').textContent = 'Log a purchase'; $('saveBtn').textContent = 'Add purchase'; $('cancelEdit').style.display = 'none';
+  refreshForm();
+}
+['pDate','pAmt','pInst','pMonths'].forEach(id => { $(id).addEventListener('input', refreshForm); $(id).addEventListener('change', refreshForm); });
+$('pDate').addEventListener('click', e => { try{ e.target.showPicker && e.target.showPicker(); }catch(_){} });
+$('cancelEdit').addEventListener('click', resetForm);
+$('saveBtn').addEventListener('click', () => {
+  const date = $('pDate').value, desc = $('pDesc').value.trim(), amount = Math.round(num($('pAmt').value)*100)/100;
+  const months = $('pInst').checked ? Math.max(2, Math.round(num($('pMonths').value))) : 0;
+  if(!isoOk(date)){ toast('Pick a date first.'); return; }
+  if(!(amount > 0)){ toast('Enter an amount above ₱0.'); $('pAmt').focus(); return; }
+  const c = closeFor(date);
+  if(editingId){
+    const p = state.purchases.find(x => x.id === editingId);
+    if(p){ Object.assign(p, {date, desc, amount, months}); }
+    toast(`Updated. On the ${shortWords(c)} statement.`);
+  } else {
+    state.purchases.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2,7), date, desc, amount, months });
+    toast(months ? `Added. ${months} monthly payments from the ${shortWords(c)} statement.` : `Added to the ${shortWords(c)} statement.`);
+  }
+  save(); resetForm(); renderNow(); renderLog(); renderHistory();
+});
+
+// ================= events =================
+document.addEventListener('input', e => {
+  const t = e.target;
+  if(t.dataset.pay){
+    const [d, k] = t.dataset.pay.split(':');
+    const p = state.paydays[d] || (state.paydays[d] = {income:0, moved:null});
+    if(k === 'income') p.income = num(t.value);
+    else p.moved = (t.value.trim() === '') ? null : num(t.value);
+    const calc = document.querySelector(`[data-out="pay:${d}"]`); if(calc) calc.innerHTML = payCalc(d);
+    save(); updateNumbers();
+  } else if(t.dataset.stmt){
+    const c = t.dataset.stmt, st = state.statements[c] || (state.statements[c] = {paid:false, statementAmt:null});
+    st.statementAmt = (t.value.trim() === '') ? null : num(t.value);
+    save(); updateNumbers();
+  }
+});
+// Settings apply when you leave the box, then everything is redrawn.
+function applySettings(){
+  const st = S();
+  st.card = $('sCard').value.trim() || st.card;
+  st.day = Math.min(28, Math.max(1, Math.round(num($('sDay').value)) || st.day));
+  st.due = Math.min(60, Math.max(1, Math.round(num($('sDue').value)) || st.due));
+  st.pct = Math.min(100, Math.max(0, num($('sPct').value)));
+  st.every = Math.min(31, Math.max(7, Math.round(num($('sEvery').value)) || st.every));
+  if(isoOk($('sAnchor').value)) st.anchor = $('sAnchor').value;
+  save(); renderAll();
+}
+['sCard','sDay','sDue','sPct','sEvery','sAnchor'].forEach(id => $(id).addEventListener('change', applySettings));
+$('sAnchor').addEventListener('input', () => { $('sAnchorWords').textContent = words($('sAnchor').value); });
+
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-tab],[data-del],[data-edit],[data-paid],[data-action],[data-theme-set]');
+  if(!el) return;
+  const d = el.dataset;
+  if(d.tab){ showTab(d.tab); if(d.tab==='log' && !editingId) setTimeout(()=>$('pAmt').focus({preventScroll:true}), 50); return; }
+  if(d.themeSet){ setTheme(d.themeSet); return; }
+  if(d.del){
+    const i = state.purchases.findIndex(p => p.id === d.del); if(i < 0) return;
+    const removed = state.purchases.splice(i,1)[0];
+    if(editingId === removed.id) resetForm();
+    save(); renderNow(); renderLog(); renderHistory();
+    toast('Purchase deleted', 'Undo', () => { state.purchases.splice(i,0,removed); save(); renderNow(); renderLog(); renderHistory(); });
+    return;
+  }
+  if(d.edit){
+    const p = state.purchases.find(x => x.id === d.edit); if(!p) return;
+    editingId = p.id;
+    $('pDate').value = p.date; $('pDesc').value = p.desc; $('pAmt').value = p.amount;
+    $('pInst').checked = p.months > 0; if(p.months > 0) $('pMonths').value = String(p.months);
+    $('formTitle').textContent = 'Edit purchase'; $('saveBtn').textContent = 'Save changes'; $('cancelEdit').style.display = '';
+    refreshForm(); showTab('log');
+    return;
+  }
+  if(d.paid){
+    const st = state.statements[d.paid] || (state.statements[d.paid] = {paid:false, statementAmt:null});
+    st.paid = !st.paid; save(); renderNow(); renderHistory();
+    toast(st.paid ? 'Marked as paid.' : 'Marked as not paid.');
+    return;
+  }
+  switch(d.action){
+    case 'showBackup': { const b=$('backupBox'); b.value=JSON.stringify(state); b.focus(); b.select(); break; }
+    case 'copyBackup': {
+      const b=$('backupBox'); b.value=JSON.stringify(state); b.focus(); b.select(); let ok=false;
+      try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(b.value); ok=true; } }catch(_){}
+      if(!ok){ try{ ok=document.execCommand('copy'); }catch(_){} }
+      toast(ok?'Backup copied':'Select the text and copy it manually'); break; }
+    case 'restoreBackup': {
+      const raw=$('backupBox').value.trim(); if(!raw){ toast('Paste your backup text first'); return; }
+      let parsed; try{ parsed=JSON.parse(raw); }catch(_){ toast("That doesn't look like a valid backup"); return; }
+      if(!parsed || typeof parsed!=='object' || !parsed.settings){ toast("That doesn't look like a valid backup"); return; }
+      if(await askConfirm('Replace everything on this device with the pasted backup?','Restore')){
+        state = normalize(parsed); save(); resetForm(); renderAll(); $('backupBox').value=''; showTab('now'); toast('Backup restored');
+      }
+      break; }
+    case 'resetAll':
+      if(await askConfirm('Clear all purchases, paydays and payment records? Your settings are kept.','Clear all')){
+        state = normalize({settings: state.settings}); save(); resetForm(); renderAll(); showTab('now'); toast('Cleared.');
+      }
+      break;
+  }
+});
+
+// ================= theme =================
+let themeMode = 'system';
+const sysDark = () => !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+function applyTheme(){
+  const r = document.documentElement;
+  if(themeMode === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', themeMode);
+  const dark = themeMode === 'dark' || (themeMode === 'system' && sysDark());
+  $('themeBtn').textContent = themeMode === 'system' ? '🌓' : (dark ? '🌙' : '☀️');
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.classList.toggle('on', b.dataset.themeSet === themeMode));
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', dark ? '#0D1216' : '#161F27');
+}
+function setTheme(m){ themeMode = m; try{ localStorage.setItem(THEME_KEY, m); }catch(_){} applyTheme(); }
+try{ themeMode = localStorage.getItem(THEME_KEY) || 'system'; }catch(_){}
+applyTheme();
+$('themeBtn').addEventListener('click', () => setTheme(themeMode==='system'?'light':themeMode==='light'?'dark':'system'));
+if(window.matchMedia){ const mq = window.matchMedia('(prefers-color-scheme: dark)'); const f=()=>{ if(themeMode==='system') applyTheme(); };
+  mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f); }
+
+// ================= start =================
+async function load(){
+  try{ const r = await store.get(KEY); state = (r && r.value) ? normalize(JSON.parse(r.value)) : defaults(); }
+  catch(e){ state = defaults(); }
+  setText('savedTag','Ready');
+  resetForm(); renderAll();
+}
+load();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed', err)); });
+}
+
+try{ (function(){
+  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent||'') || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  const how = $('installHow'), btn = $('installBtn');
+  if(standalone){ how.textContent = 'Running as an app. You\'re all set.'; return; }
+  how.textContent = isIOS ? 'In Safari, tap Share, then "Add to Home Screen".' : 'In Chrome, tap ⋮, then "Install app" or "Add to Home screen".';
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); deferred = ev; btn.style.display=''; });
+  btn.addEventListener('click', async () => { if(!deferred) return; deferred.prompt(); try{ await deferred.userChoice; }catch(_){} deferred=null; btn.style.display='none'; });
+})(); }catch(e){ console.warn(e); }
+</script>
+</body>
+</html>
