@@ -96,6 +96,26 @@
   /* statement period cards */
   .periods{display:grid; gap:12px;}
   .pcard{background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:14px; min-width:0;}
+  /* slim one-line bar for a paid statement or the next one */
+  .pmini{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--surface); color:var(--ink);
+    border:1.5px solid var(--rule); border-radius:14px; padding:12px 14px; font-size:.86rem;}
+  .pmini .mrole{font-size:.62rem; text-transform:uppercase; letter-spacing:.6px; font-weight:700; color:var(--ink-soft); display:block;}
+  .pmini .mtxt{flex:1; min-width:0;}
+  .pmini .mtxt b{font-family:var(--serif); font-size:.95rem; font-weight:600;}
+  .pmini .mval{font-family:var(--mono); font-weight:600; white-space:nowrap;}
+  .pmini .chev{color:var(--ink-soft); font-size:.8rem;}
+  .pmini.paid .mrole{color:var(--green);}
+  .collapse{display:block; width:100%; margin-top:10px; background:none; border:none; color:var(--ink-soft); font-size:.78rem; font-weight:600; padding:6px;}
+  /* paydays: one clear total */
+  .parktotal{background:var(--green); color:var(--on-dark); border-radius:14px; padding:14px; margin-bottom:12px;}
+  .parktotal .lbl{color:rgba(255,255,255,.8);}
+  .parktotal .big{font-family:var(--mono); font-size:1.5rem; font-weight:600; margin-top:2px;}
+  .parktotal small{display:block; opacity:.85; font-size:.76rem; margin-top:2px;}
+  .linkbtn{background:none; border:none; color:var(--green); font-size:.78rem; font-weight:600; padding:6px 0; text-decoration:underline;}
+  details.other{margin-top:14px;}
+  details.other summary{cursor:pointer; font-size:.84rem; font-weight:600; color:var(--ink-soft); padding:10px 2px; list-style:none;}
+  details.other summary::-webkit-details-marker{display:none;}
+  details.other summary::before{content:'▸ ';} details.other[open] summary::before{content:'▾ ';}
   .pcard .role{font-size:.66rem; text-transform:uppercase; letter-spacing:.6px; font-weight:700; color:var(--ink-soft);}
   .pcard.now{box-shadow:0 0 0 2px var(--green) inset;}
   .pcard .range{font-family:var(--serif); font-size:1.02rem; font-weight:600; margin:2px 0 2px;}
@@ -288,7 +308,7 @@
           <label>Days until payment due<input type="number" inputmode="numeric" id="sDue" min="1" max="60"></label>
         </div>
         <div class="row2">
-          <label>Wants share of pay (%)<input type="number" inputmode="decimal" id="sPct" min="0" max="100"></label>
+          <label>Non-essential share (%)<input type="number" inputmode="decimal" id="sPct" min="0" max="100"></label>
           <label>Paid every (days)<input type="number" inputmode="numeric" id="sEvery" min="7" max="31"></label>
         </div>
         <label>Any one of your paydays
@@ -501,7 +521,7 @@ function levelClass(s){
   return s.ratio > 1 ? 'over' : (s.ratio >= 0.8 ? 'warn' : '');
 }
 function leftLabel(s, role){
-  if(s.missing.length && s.left < 0) return {amt: fmt(s.charged), lbl: 'charged so far · add payday income to compare'};
+  if(s.missing.length && s.left < 0) return {amt: fmt(s.charged), lbl: 'charged so far · add the payday budget to compare'};
   if(s.left < 0) return {amt: fmt(-s.left), lbl: 'over budget'};
   return {amt: fmt(s.left), lbl: role === 'paying' || role === 'history' ? 'under budget, stays in savings' : 'left to spend'};
 }
@@ -552,18 +572,33 @@ function barPct(s){
   return s.budget > 0 ? Math.min(100, s.charged/s.budget*100) : (s.charged>0 ? 100 : 0);
 }
 function paceText(s, daysLeft){
-  if(s.missing.length && s.left < 0) return 'Enter the income for every payday in this period to see your daily limit.';
+  if(s.missing.length && s.left < 0) return 'Enter the budget for every payday in this period to see your daily limit.';
   if(s.left < 0) return `You're <b>${fmt(-s.left)}</b> over. Anything else you put on the card this period comes from somewhere else.`;
   return `About <b>${fmt(s.left/daysLeft)}</b> a day for the next <b>${daysLeft}</b> day${daysLeft>1?'s':''}.`;
 }
 function missingText(s){
   if(!s.missing.length) return '';
-  return `Still need income for: ${s.missing.map(shortWords).join(', ')}. Add it under Paydays.`;
+  const curPr = period(currentClose());
+  const elsewhere = s.missing.some(d => d < curPr.start || d > curPr.end);
+  return `Still need the budget for: ${s.missing.map(shortWords).join(', ')}. Add it under Paydays${elsewhere ? ' → Other paydays' : ''}.`;
+}
+// Statements you've opened by tapping their slim bar (not saved; they fold back up next time).
+const expanded = new Set();
+function miniBar(role, s){
+  const paid = role === 'paying';
+  const label = paid ? '✓ Paid' : 'Coming up';
+  return `<button class="pmini ${paid?'paid':''}" data-expand="${s.close}">
+    <span class="mtxt"><span class="mrole">${label}</span><b>${shortWords(s.start)} – ${shortWords(s.end)}</b></span>
+    <span class="mval" data-out="${s.close}:mini">${fmt(s.charged)}</span><span class="chev">▾</span></button>`;
 }
 function renderNow(){
   const cur = currentClose();
-  $('periods').innerHTML =
-    periodCard('paying', stats(shiftClose(cur,-1))) + periodCard('now', stats(cur)) + periodCard('next', stats(shiftClose(cur,1)));
+  const pay = stats(shiftClose(cur,-1)), now = stats(cur), next = stats(shiftClose(cur,1));
+  const payPaid = !!(state.statements[pay.close] && state.statements[pay.close].paid);
+  // A paid statement and the next one fold into slim bars, so "Spending now" sits near the top.
+  const show = (role, s, fold) => fold && !expanded.has(s.close) ? miniBar(role, s)
+    : periodCard(role, s) .replace(/<\/div>\s*$/, fold ? `<button class="collapse" data-collapse="${s.close}">Fold away ▴</button></div>` : '</div>');
+  $('periods').innerHTML = show('paying', pay, payPaid) + show('now', now, false) + show('next', next, true);
   updateNumbers();
 }
 
@@ -598,6 +633,7 @@ function updateNumbers(){
     const fill = el('fill');
     if(fill){ fill.className = 'fill ' + cls; fill.style.width = barPct(s) + '%'; }
     if(el('budget')) el('budget').textContent = fmt(s.budget);
+    if(el('mini')) el('mini').textContent = fmt(s.charged);
     if(el('charged')) el('charged').textContent = fmt(s.charged);
     const recon = el('recon');
     if(recon){
@@ -651,29 +687,50 @@ function renderLog(){
   }).join('');
 }
 
+function paydayRow(d){
+  const t = today(), p = state.paydays[d] || {}, hasPay = num(p.income) > 0;
+  return `<div class="payday">
+    <div class="ph"><b>${words(d)}</b><span class="tag ${d<=t?'got':'soon'}">${d<=t?'Received':'Upcoming'}</span></div>
+    <label class="lbl" style="margin-top:2px;">Non-essential budget (₱)</label>
+    <input type="number" inputmode="decimal" step="0.01" data-pay="${d}:moved" value="${p.moved!=null?p.moved:''}" placeholder="${budgetPlaceholder(d)}">
+    <div class="calc" data-out="pay:${d}">${payCalc(d)}</div>
+    <div class="moved" style="${hasPay?'':'display:none;'}margin-top:8px;">
+      <label class="lbl">Take-home pay (₱)</label>
+      <input type="number" inputmode="decimal" step="0.01" data-pay="${d}:income" value="${hasPay?p.income:''}" placeholder="0.00">
+      <p class="hint" style="margin-top:4px;">Leave the budget box empty and it uses ${S().pct}% of this.</p>
+    </div>
+    ${hasPay ? '' : `<button class="linkbtn" data-showmoved="${d}">Work it out from my pay (${S().pct}%)</button>`}
+  </div>`;
+}
+function budgetPlaceholder(d){
+  const p = state.paydays[d] || {};
+  return num(p.income) > 0 ? `${S().pct}% of pay: ${fmt(num(p.income)*S().pct/100)}` : '0.00';
+}
+function parkTotal(){
+  const pr = period(currentClose());
+  return paydaysBetween(pr.start, pr.end).reduce((s,d)=>s+setAsideFor(d),0);
+}
 function renderPaydays(){
-  const cur = currentClose(), t = today();
-  const closes = [shiftClose(cur,-1), cur, shiftClose(cur,1)];
-  $('paydayIntro').textContent = `Enter your take-home pay. ${S().pct}% is what you park in savings for ${S().card} purchases. If you moved a different amount, put it in "Actually moved".`;
-  $('paydayList').innerHTML = closes.map(c => {
-    const pr = period(c), pays = paydaysBetween(pr.start, pr.end);
-    return `<h3>For the ${shortWords(c)} statement</h3>` + (pays.length ? pays.map(d => {
-      const p = state.paydays[d] || {};
-      return `<div class="payday">
-        <div class="ph"><b>${words(d)}</b><span class="tag ${d<=t?'got':'soon'}">${d<=t?'Received':'Upcoming'}</span></div>
-        <div class="row2">
-          <label>Income (₱)<input type="number" inputmode="decimal" step="0.01" data-pay="${d}:income" value="${p.income?p.income:''}" placeholder="0.00"></label>
-          <label>Actually moved (₱)<input type="number" inputmode="decimal" step="0.01" data-pay="${d}:moved" value="${p.moved==null?'':p.moved}" placeholder="optional"></label>
-        </div>
-        <div class="calc" data-out="pay:${d}">${payCalc(d)}</div>
-      </div>`; }).join('') : '<div class="empty">No paydays in this period.</div>');
+  const cur = currentClose(), pr = period(cur), pays = paydaysBetween(pr.start, pr.end);
+  $('paydayIntro').textContent = '';
+  const others = [shiftClose(cur,-1), shiftClose(cur,1)].map(c => {
+    const o = period(c), ps = paydaysBetween(o.start, o.end);
+    return ps.length ? `<h3>${shortWords(o.start)} – ${words(o.end)}</h3>` + ps.map(paydayRow).join('') : '';
   }).join('');
+  $('paydayList').innerHTML = `
+    <div class="parktotal">
+      <span class="lbl">Non-essential budget for ${esc(S().card)}</span>
+      <div class="big" data-out="paytotal">${fmt(parkTotal())}</div>
+      <small>For purchases ${shortWords(pr.start)} – ${words(pr.end)} · bill due ${words(pr.due)}</small>
+    </div>
+    ${pays.length ? pays.map(paydayRow).join('') : '<div class="empty">No paydays in this statement.</div>'}
+    <details class="other"><summary>Other paydays (last and next statement)</summary>${others || '<div class="empty">None.</div>'}</details>`;
 }
 function payCalc(d){
   const p = state.paydays[d] || {};
   const suggested = num(p.income) * S().pct / 100;
-  if(p.moved != null) return `Counting <b>${fmt(p.moved)}</b> (what you moved). ${S().pct}% would be ${fmt(suggested)}.`;
-  return num(p.income) > 0 ? `${S().pct}% = <b>${fmt(suggested)}</b> to park in savings.` : 'Enter your income for this payday.';
+  if(p.moved != null) return `Counting <b>${fmt(p.moved)}</b> for this payday.`;
+  return num(p.income) > 0 ? `Using ${S().pct}% of your pay: <b>${fmt(suggested)}</b>.` : 'Enter the non-essential budget from this payday.';
 }
 
 function renderHistory(){
@@ -762,6 +819,8 @@ document.addEventListener('input', e => {
     if(k === 'income') p.income = num(t.value);
     else p.moved = (t.value.trim() === '') ? null : num(t.value);
     const calc = document.querySelector(`[data-out="pay:${d}"]`); if(calc) calc.innerHTML = payCalc(d);
+    const bud = document.querySelector(`[data-pay="${d}:moved"]`); if(bud) bud.placeholder = budgetPlaceholder(d);
+    const tot = document.querySelector('[data-out="paytotal"]'); if(tot) tot.textContent = fmt(parkTotal());
     save(); updateNumbers();
   } else if(t.dataset.stmt){
     const c = t.dataset.stmt, st = state.statements[c] || (state.statements[c] = {paid:false, statementAmt:null});
@@ -784,9 +843,16 @@ function applySettings(){
 $('sAnchor').addEventListener('input', () => { $('sAnchorWords').textContent = words($('sAnchor').value); });
 
 document.addEventListener('click', async e => {
-  const el = e.target.closest('[data-tab],[data-del],[data-edit],[data-paid],[data-action],[data-theme-set]');
+  const el = e.target.closest('[data-tab],[data-del],[data-edit],[data-paid],[data-action],[data-theme-set],[data-expand],[data-collapse],[data-showmoved]');
   if(!el) return;
   const d = el.dataset;
+  if(d.expand){ expanded.add(d.expand); renderNow(); return; }
+  if(d.collapse){ expanded.delete(d.collapse); renderNow(); return; }
+  if(d.showmoved){
+    const row = el.closest('.payday'); const box = row && row.querySelector('.moved');
+    if(box){ box.style.display = ''; el.remove(); const inp = box.querySelector('input'); if(inp) inp.focus(); }
+    return;
+  }
   if(d.tab){ showTab(d.tab); if(d.tab==='log' && !editingId) setTimeout(()=>$('pAmt').focus({preventScroll:true}), 50); return; }
   if(d.themeSet){ setTheme(d.themeSet); return; }
   if(d.del){
@@ -808,7 +874,8 @@ document.addEventListener('click', async e => {
   }
   if(d.paid){
     const st = state.statements[d.paid] || (state.statements[d.paid] = {paid:false, statementAmt:null});
-    st.paid = !st.paid; save(); renderNow(); renderHistory();
+    st.paid = !st.paid; if(st.paid) expanded.delete(d.paid);
+    save(); renderNow(); renderHistory();
     toast(st.paid ? 'Marked as paid.' : 'Marked as not paid.');
     return;
   }
